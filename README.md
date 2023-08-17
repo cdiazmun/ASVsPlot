@@ -2,7 +2,7 @@
 *The actual plots that result from running the codes below can be found in the PDF*
 ## Introduction 
 
-This is a guide to plot the relative abundance of genera/species of interest based on amplicon sequencing data. The script is based on a more basic, previous one made by Florac De Bruyne. The script is meant for amplicon sequences that have been processed using `DADA2` (Callahan *et al., * 2017, 2019). Therefore, you will need two files to start this script:
+This is a guide to plot the relative abundance of genera/species of interest based on amplicon sequencing data. The script is based on a more basic, previous one made by Florac De Bruyne. The script is meant for amplicon sequences that have been processed using `DADA2` (Callahan *et al.,* 2017, 2019). Therefore, you will need two files to start this script:
 
   1. **Sequence table**. A tab separated file containing the amplicon sequence variants (ASVs) inferred using `DADA2` and the number of reads per sample. Every column is a sample. It is possible that the name of the first column is not present in the text file. If so, edit it and include "Sequence" (+ a tab) at the very beginning. This will be the column name of the first column.
   
