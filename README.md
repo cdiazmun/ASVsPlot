@@ -1,5 +1,6 @@
 # ASVsPlot
-*The actual plots that result from running the codes below can be found in the PDF*
+The actual plots that result from running the codes below can be found in the PDF. All the data used in this guide has been published and is publicly available in Van de Voorde *et al.,* 2023 (10.3389/fmicb.2023.1232323).
+
 ## Introduction 
 
 This is a guide to plot the relative abundance of genera/species of interest based on amplicon sequencing data. The script is based on a more basic, previous one made by Florac De Bruyne. The script is meant for amplicon sequences that have been processed using `DADA2` (Callahan *et al.,* 2017, 2019). Therefore, you will need two files to start this script:
@@ -26,7 +27,7 @@ library(tidyverse) # To manipulate data to make it look easy and tidy.
 library(ggthemes) # Extra Themes, Scales and Geoms for 'ggplot2'.
 ```
 
-Next, we are going to load two functions that will be used afterwards (thanks to Marko Verce for these functions). The first one is to calculate the per-column percentage of relative abundance of every row and the second is to group very low occuring rows through the whole dataset under "Minorities". Why do I speak about rows and not ASVs? Because the functions do not care about what is in there, it will take whatever is in the rows, and this can be ASvs themselves, species or genera. And this is very important for the interpretation of the data, but you will see it more clearly when we actually use the functions.
+Next, we are going to load two functions that will be used afterwards. The first one is to calculate the per-column percentage of relative abundance of every row and the second is to group very low occuring rows through the whole dataset under "Minorities". Why do I speak about rows and not ASVs? Because the functions do not care about what is in there, it will take whatever is in the rows, and this can be ASvs themselves, species or genera. And this is very important for the interpretation of the data, but you will see it more clearly when we actually use the functions.
 
 ```{r}
 # Function to calculate the relative abundances
