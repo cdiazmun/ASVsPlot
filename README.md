@@ -19,14 +19,14 @@ This part of the script will execute some commands to adapt the two tables descr
 First of all, let's set the working directory and the load the libraries needed for this script.
 
 ```{r}
-setwd("C:/Users/cdiazmun/OneDrive - Vrije Universiteit Brussel/IMDO/R scripts IMDO/Amplicon sequencing/")
+setwd("C:/Path/to/your/working/directory")
 
 library(reshape2) # Flexibly Reshape Data. To manipulate data. 
 library(tidyverse) # To manipulate data to make it look easy and tidy.
 library(ggthemes) # Extra Themes, Scales and Geoms for 'ggplot2'.
 ```
 
-Next, we are going to load two functions that will be used afterwards. The first one is to calculate the per-column percentage of relative abundance of every row and the second is to group very low occuring rows through the whole dataset under "Minorities". Why do I speak about rows and not ASVs? Because the functions do not care about what is in there, it will take whatever is in the rows, and this can be ASvs themselves, species or genera. And this is very important for the interpretation of the data, but you will see it more clearly when we actually use the functions.
+Next, we are going to load two functions that will be used afterwards (thanks to Marko Verce for these functions). The first one is to calculate the per-column percentage of relative abundance of every row and the second is to group very low occuring rows through the whole dataset under "Minorities". Why do I speak about rows and not ASVs? Because the functions do not care about what is in there, it will take whatever is in the rows, and this can be ASvs themselves, species or genera. And this is very important for the interpretation of the data, but you will see it more clearly when we actually use the functions.
 
 ```{r}
 # Function to calculate the relative abundances
