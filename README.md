@@ -1,4 +1,6 @@
 # ASVsPlot
+**Cristian Díaz-Muñoz** and **Florac De Bruyne**
+
 The actual plots that result from running the codes below can be found in the PDF. All the data used in this guide has been published and is publicly available in Van de Voorde *et al.,* 2023 (10.3389/fmicb.2023.1232323).
 
 ## Introduction 
