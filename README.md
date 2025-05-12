@@ -21,7 +21,7 @@ This part of the script will execute some commands to adapt the two tables descr
 
 First of all, let's set the working directory and the load the libraries needed for this script.
 
-```{r}
+```r
 setwd("C:/Path/to/your/working/directory")
 
 library(reshape2) # Flexibly Reshape Data. To manipulate data. 
@@ -31,7 +31,7 @@ library(ggthemes) # Extra Themes, Scales and Geoms for 'ggplot2'.
 
 Next, we are going to load two functions that will be used afterwards. The first one is to calculate the per-column percentage of relative abundance of every row and the second is to group very low occuring rows through the whole dataset under "Minorities". Why do I speak about rows and not ASVs? Because the functions do not care about what is in there, it will take whatever is in the rows, and this can be ASvs themselves, species or genera. And this is very important for the interpretation of the data, but you will see it more clearly when we actually use the functions.
 
-```{r}
+``` r
 # Function to calculate the relative abundances
 percentage <- function(d){
   d_per <- apply(d[2:ncol(d)], 2, function(x) x/sum(x)*100)
@@ -52,14 +52,14 @@ minoritize_loose <- function(d,threshold){
 
 Read the taxonomy table (`bacteria_taxa`) and the sequence table (`bacteria_reads`).
 
-```{r}
+```r
 bacteria_taxa <- read_tsv("Test data/Taxonomy_pseudo",col_names=TRUE)
 bacteria_reads <- read_tsv("Test data/Reads_pseudo",col_names=TRUE) 
 ```
 
 Merge the two data frames using the first column (`Sequence`) as the common vector for the merging. 
 
-```{r}
+```r
 bacteria <- merge(bacteria_taxa, bacteria_reads,
                   by="Sequence",
                   all=T)
@@ -67,13 +67,13 @@ bacteria <- merge(bacteria_taxa, bacteria_reads,
 
 In my dataset there are some mistakes in the labelings and some samples that had to be repeated. As this is a quite often ocurring mistake, I decided to also show how to deal with these issues. In the next code line we change the positions between F02T96 and F04T96 and remove repeated and failed samples (F03T006, F03T024, F03T048, F12T072).
 
-```{r}
+```r
 bacteria <- bacteria[c(1:22,43,24,25,26,28,29,32:42,23,44:107,109,110,111)]
 ```
 
 Since we are only interested in the microbial composition at genus-level, we are going to select only the `Genus` column and discard the `Species` column. It is in general a **good practice** to create a new object every time we make a change to the data frame. This way if there is an error in the next steps or if we something weird in the data frame, we can go back step by step and see where the mistake was. Also, I **recommend** viewing the data frames as we transform them by clicking on them at the right-hand side, under Global Environment (in RStudio).
 
-```{r}
+```r
 bacteria_genus <- bacteria[,7:ncol(bacteria)]
 bacteria_genus <- bacteria_genus[,-2]
 ```
@@ -82,39 +82,39 @@ Here we are going to do a rather important step. We have sequenced the 16S, to g
 
 Reclassify the `Genus` with mithocondria or chloroplast as plant material
 
-```{r}
+```r
 bacteria_genus$Genus[bacteria$Order=="Rickettsiales"] <- "Plant material"
 bacteria_genus$Genus[bacteria$Order=="Chloroplast"] <- "Plant material"
 ```
 
 Reclassify the `Family` name Enterobacteriaceae as `Genus` to be able to appear on the legend and be classified as that This is normally a necessary step if you're sequencing small fragments of the 16S, such as the V3-V4 region, as these regions have not enough discriminatory power for the Enterobacteria lineage. If your ASVs originate from full 16S amplicons, you don't need to run the following line.
 
-```{r eval=FALSE}
+```r
 bacteria_genus$Genus[is.na(bacteria_genus$Genus) & bacteria$Family=="Enterobacteriaceae"] <- "Enterobacteriaceae"
 ```
 
 All the rest rows that are unclassified will be as "Above genus".
 
-```{r}
+```r
 bacteria_genus$Genus[is.na(bacteria_genus$Genus)] <- "Above genus"
 ```
 
 Finally, let's remove the plant material from the dataset. It is important that we do this step before calculating the relative abundances. If you want to keep going with the plant material in, just continue the next steps using `bacteria_genus` instead of `bacteria_genus_noplants`.
 
-```{r}
+```r
 bacteria_genus_noplants <- bacteria_genus %>%
   filter(!Genus == "Plant material")
 ```
 
 In the next steps we are going to perform some calculations, so we better transform any `NA` value to 0 to avoid problems. We do this step now, because there are not any NA anymore at the Genus column. 
 
-```{r}
+```r
 bacteria_genus_noplants[is.na(bacteria_genus_noplants)] <- 0
 ```
 
 Transform the reads in percentage of relative abundance per sample and merge the ASV that correspond to the same genus.
 
-```{r}
+```r
 bacteria_final <- percentage(bacteria_genus_noplants)
 bacteria_final <- aggregate(bacteria_final[,2:ncol(bacteria_final)],
                             by=list(bacteria_final[,"Genus"]), FUN=sum)
@@ -123,14 +123,14 @@ colnames(bacteria_final)[1] <- "Taxon"
 
 Now we can group the genera that are in less than xx % of relative abundance in any sample. In other words, if there is only one sample in which a genus has more than xx %, it will be included as such, otherwise grouped under minorities. We use 1 % when plant material is included and 0.1% when plant material is not included. It is better to apply minoritize after Genus melting, so we can represent more accurately the Genus that are present in the fermentation. The threshold to set depends on your sample diversity and which story you want to tell. If you are interested in watching the big picture and the main microorganisms prevailing over the fermentation, you can increase that threshold. If you want to know all the small microbial groups that are present in, for example, initial samples of a spontaneous process, then you can decrease the threshold to include more genera. Also consider that the more genera are plotted, the more difficult it gets for the reader to interpret the data. and it is also more difficult to choose divergent enough colors, *etc*,.
 
-```{r}
+```r
 bacteria_final_min <- minoritize_loose(bacteria_final, 0.1)
 head(bacteria_final_min[1:10,1:10])
 ```
 
 At this point, we can save the data frame as a text file, if we want to inspect it using Excel or whatever.
 
-```{r eval=FALSE}
+```r
 write_excel_csv2(bacteria_final_min, "Test data/bacteria_genus_relative_abundance_pseudo.csv")
 ```
 
@@ -138,14 +138,14 @@ write_excel_csv2(bacteria_final_min, "Test data/bacteria_genus_relative_abundanc
 
 We are going to plot using `ggplot2` and this package likes dataframes in a "long-table" style. So, the first thing we need to do is to organize the data frame in such way. We will use the function `melt()` from the `Reshape2`package.
 
-```{r}
+```r
 bacteria_melted <- melt(bacteria_final_min, id.vars="Taxon")
 head(bacteria_melted, n=10)
 ```
 
 Now, we are going to add extra columns with any kind of information that we consider of relevance. We can use these new columns as factors or groups, to sort, plot, divide, or filter our data. In my case, I am going to start by adding information about the `Fermentation` process and the `Vessel` in which the fermentation was performed. Then, we will add the time points as a numeric scale. A way of doing is by using the function `rep()`. The logic behind the code you can find below is the following: my samples are well sorted by fermentation and time point by default; in the melted table, every sample is repeated the same number of times as Genera are in the final dataset (24); I have 16 time points  for the "Negative control". Then I add 24\*16 times "Negative control". And I do the same for the rest of fermentation processes. Why do not I write 384, instead of 24\*16? Because if I want to reprocess the data changing the threshold for minorities, I will have a different number of genera represented in my final dataset and this way I can easily substitute 24\* by the number that I want, using `Ctrl+F`. 
 
-```{r}
+```r
 bacteria_melted$Fermentation <- c(rep("Negative control",24*16),
                                   rep("Positive control",24*17),
                                   rep("AFSC V",24*16),
@@ -164,7 +164,7 @@ bacteria_melted$Vessel <- c(rep("NC (F01)",24*8), rep("NC (F02)",24*8),
 
 For the time points, we could do the same, but I decided to be a bit inventive this time. Since the information of the time point is embedded in the sample name, I can subtract that information and add it as a new column. Finally, we transform that column to numeric. 
 
-```{r}
+```r
 # We are taking the names in the "variable" column as characters (strings) and
 # dividing them using "T" as separator. Then we are selecting the second field.
 bacteria_melted$Timepoint <- sapply(strsplit(basename(as.character(bacteria_melted$variable)), 
@@ -179,7 +179,7 @@ bacteria_melted <- bacteria_melted[,-c(7:ncol(bacteria_melted))]
 
 Good. We added all factors that we wanted. The next code line will tell R in which order we want them to appear when we plot the data:
 
-```{r}
+```r
 bacteria_melted$Vessel <- factor(bacteria_melted$Vessel, 
                                  levels = c("NC (F01)", "NC (F02)",
                                             "PC (F03)", "PC (F04)",
@@ -191,7 +191,7 @@ bacteria_melted$Vessel <- factor(bacteria_melted$Vessel,
 
 Next, we define a vector with the genera present in the order that we want them to appear in the plot. My way of sorting the microbial genera/species in a relative abundance plot is taxonomy-based. That way it is easier to make sense of the plot, which group of microorganisms grow and thrive and which ones decline over the fermentation. 
 
-```{r}
+```r
 taxa_genus <- c("Above genus", "Minorities",
                 "Cellulosimicrobium", "Actinomycetospora", "Brachybacterium", 
                 "Erwinia", "Frateuria", "Pseudomonas","Enterobacter", "Klebsiella", 
@@ -207,7 +207,7 @@ bacteria_melted <- bacteria_melted %>%
 
 Next, we set the colors that we want for the genera. I also choose the colors taxonomy-wise. The order of the colors is very important, they need to be in the same order as the genera.
 
-```{r}
+```r
 taxa_last <- c("azure4", "antiquewhite2")
 taxa_rest <- c('#ffffd4','#fee391','#fec44f','#fe9929','#d95f0e','#993404') # Yellows
 taxa_entero <- c('#fcbba1','#fc9272','#fb6a4a','#de2d26','#a50f15') # Reds
@@ -222,7 +222,7 @@ taxa_col <- c(taxa_last,  taxa_rest, taxa_entero, taxa_lactoc,
 
 Finally, the last touch. We define a vector to write the names in *italic*. Again, the order of the genera needs to be the same as in the `taxa_genus` column.
 
-```{r}
+```r
 mylabels <- c("Above genus", "Minorities",
               expression(italic("Cellulosimicrobium")), 
               expression(italic("Actinomycetospora")),
@@ -254,7 +254,7 @@ We can finally create a plot!
 
 First, we are going to plot the relative abundance of every genus as a function of the fermentation time. For that, we supply the `Timepoint`column as a numerical vector to `aes()`. The colors are defined by `fill` or `color` depending on the `geom` used. When the x-axis is a continuous scale and the y-axis always goes from 0 to 100, is a nice idea to use `geom_area()`. We use then `facet_wrap()` to separate each `Vessel` separately, inside the same plot. All the other things are pure aesthetics.
 
-```{r fig.width=10, fig.height=8}
+```r
 ggplot(bacteria_melted, aes(x = Timepoint, y = value, fill = Taxon)) +
   
   geom_area(stat = "identity", position = position_stack()) +
@@ -288,7 +288,7 @@ ggplot(bacteria_melted, aes(x = Timepoint, y = value, fill = Taxon)) +
 
 Fantasties. But we have many time points during the first 24 h of fermentation, these samples are kind of unermined with this representation. Let's plot now the same, but using the `Timepoint` column as a factor and every time point represented with `geom_bar()`.
 
-```{r fig.width=10, fig.height=8}
+```r
 ggplot(bacteria_melted, aes(x = as.factor(Timepoint), y = value, fill = Taxon)) +
   
   geom_bar(stat = "identity", position = position_stack()) +
@@ -319,7 +319,7 @@ ggplot(bacteria_melted, aes(x = as.factor(Timepoint), y = value, fill = Taxon)) 
 
 Voilà, your marvelous relative abundance figure representing the microbial community dynamics at genus level is finished! Let's save the plot. As you may have seen previously, we are going to control the size of the items by playing with the `width` and `height` options of `ggsave()`. I always like to generate my figures in a different folder, named "Plots". Keep the dpi at 300, as this is the optimal resolution for publications. 
 
-```{r eval=FALSE}
+```r
 ggsave("Bacteria_barplot.tiff", path = "Plots", width = 10, height = 8, units = "in", dpi = 300)
 ```
 
@@ -327,7 +327,7 @@ ggsave("Bacteria_barplot.tiff", path = "Plots", width = 10, height = 8, units = 
 
 The most straight-forward option would just be to join the `Species` column to the `Genus` column at the beginning of the pipeline and generate a data frame named like `bacteria_species` instead of `bacteria_genus` and afterwards aggregate the ASVs by species. But in the example I illustrate below, I prefer to inspect the species diversity by microbial group and don't consider any species in `Minorities`. But you are free to adapt the codes below to represent all species in your samples, using the `minoritize_loose` function. We are going to generate a plot of lactic acid bacteria (LAB) dynamics at species level. Let's start from the very beginning, to be sure we don't make any mistake with our data frames:
 
-```{r}
+```r
 bacteria_taxa <- read_tsv("Test data/Taxonomy_pseudo",col_names=TRUE)
 bacteria_reads<- read_tsv("Test data/Reads_pseudo",col_names=TRUE) 
 bacteria <- merge(bacteria_taxa, bacteria_reads,
@@ -339,7 +339,7 @@ bacteria_genus<-bacteria[,7:ncol(bacteria)]
 
 Now, we are going to filter the data to get only LAB and then join the species and genus names:
 
-```{r}
+```r
 # Filter-in all LAB genera in your dataset
 lab <- bacteria_genus %>%
   filter(Genus %in% c("Lactococcus", "Leuconostoc", "Weissella", 
@@ -357,19 +357,19 @@ lab <- lab[,-2]
 
 Let's now group the ASVs by the species they belong to and calculate the relative abundance. Keep in mind that now, 100 % is equivalent to all LAB present in the sample, not all bacteria present in the sample.
 
-```{r}
+```r
 lab_final <- aggregate(lab[,2:ncol(lab)],by=list(lab[,"Genus"]),FUN=sum)
 colnames(lab_final)[1] <- "Taxon"
 lab_relative <- percentage(lab_final)
 ```
-```{r eval=FALSE}
+```r
 # We can output this table as we did with the genus table before
 write_excel_csv2(lab_relative, "Tables/lab_species_relative_abundance_pseudo.csv")
 ```
 
 We proceed again with the reshape of the data frame and the addition of all factors for plotting. It becomes quite easy to copy-paste the previous codes and just change some numbers:
 
-```{r}
+```r
 # Reshape the data frame
 lab_melted<- melt(lab_relative,id.vars="Taxon")
 # Add Fermentation column
@@ -404,7 +404,7 @@ lab_melted$Vessel <- factor(lab_melted$Vessel,
 
 Now we are going to import the relative abundances of all LAB together within the whole bacterial community. We will need the `bacteria_final_min` data frame from the previous section. In case that you are in a different R session, remember that we exported the data frame in a `csv` format, which we can actually open in Excel and save it as `xlsx`. In Excel I just created a second sheet with the grouped relative abundances of the main microbial groups found. You can have a look at the Excel if you want. We will use the relative abundance of LAB in every sample to add an extra layer of information to our plot. 
 
-```{r}
+```r
 library(readxl)
 data <- read_excel("Test data/bacteria_genus_relative_abundance_pseudo.xlsx", sheet = 2)
 data.lab <- data %>%
@@ -415,7 +415,7 @@ colnames(data.t.lab) <- "Abundance"
 
 In order to use two different data frames in the same `ggplot` object, we need to set the same x-axis and if we use `facet_wrap()`, the same divider. That's why we need the `Timepoint` and the `Vessel` columns, respectively.
 
-```{r}
+```r
 # Add Timepoint column
 data.t.lab$Timepoint <- sapply(strsplit(basename(as.character(row.names(data.t.lab))), 
                                         "T"), `[`,2)
@@ -442,7 +442,7 @@ data.t.lab$Vessel <- factor(data.t.lab$Vessel,
 
 We can now proceed to plot our figure:
 
-```{r fig.width=10, fig.height=8}
+```r
 library(pals)
 ggplot(lab_melted, aes(x=as.factor(Timepoint), y=value, fill=Taxon)) +
   
@@ -485,7 +485,7 @@ One of the most useful things of ASVs is the ability to inspect them at sub-spec
 
 **Let's see a real (complex) example**. It is also possible that two distinct populations of a given species have the same 16S sequences, but in a different copy number. Let's assume a population of *Acteobacter lambici* with two distinct 16S sequences (I and II). This population has in total 5 copies, 2xI and 3xII. But there is also a *A. lambici* population with 5 copies of the 16S sequence and, interestingly, are also I and II. But in this case the second population has 4xI and 1xII. The ASV distribution of these two populations will be very distinguishable. At least if they are in different samples (see next figure). But let's be honest, if you see such case, you will think that the ASV I represents one *A. lambici* population and ASV II represents another. Unfortunately, in this case we cannot be sure what is the reality. 
 
-```{r echo=FALSE}
+```r
 df <- data.frame(matrix(ncol = 3, nrow = 4))
 colnames(df) <- c("ASV", "Fermentation", "Relative abundance (%)")
 df$ASV <- c("I", "I", "II", "II")
@@ -501,7 +501,7 @@ ggplot(df, aes(x=Fermentation, y=`Relative abundance (%)`, fill = ASV)) +
 
 Unless...What if we are a time series in both fermentation processes (F1 and F2)? Then the chances of our initial hypothesis of two *A. lambici* populations having two ASVs is getting strength since it is very unlikely that the ratio of different populations is kept constant through a time series. But, the possibility stills there. 
 
-```{r echo=FALSE}
+```r
 df2 <- data.frame(matrix(ncol = 4, nrow = 8))
 colnames(df2) <- c("ASV", "Fermentation", "Timepoint", "Relative abundance (%)")
 df2$ASV <- c(rep("I", 4),rep("II", 4))
@@ -519,7 +519,7 @@ ggplot(df2, aes(x=Timepoint, y=`Relative abundance (%)`, fill = ASV)) +
 
 But what if we would have this different scenario? We see that the ratios change, that is an **absolute** certainty that ASV I represent a *A. lambici* population and ASV II a different one. Cool!
 
-```{r echo=FALSE}
+```r
 df2 <- data.frame(matrix(ncol = 4, nrow = 8))
 colnames(df2) <- c("ASV", "Fermentation", "Timepoint", "Relative abundance (%)")
 df2$ASV <- c(rep("I", 4),rep("II", 4))
@@ -539,7 +539,7 @@ ggplot(df2, aes(x=Timepoint, y=`Relative abundance (%)`, fill = ASV)) +
 
 Uff, that was a lot of theory, let's go back to coding again. As done before, let's import all raw data from the beginning. Please be aware that the last line is slightly different than before.
 
-```{r}
+```r
 bacteria_taxa <- read_tsv("Test data/Taxonomy_pseudo",col_names=TRUE)
 bacteria_reads<- read_tsv("Test data/Reads_pseudo",col_names=TRUE) 
 bacteria <- merge(bacteria_taxa, bacteria_reads,
@@ -551,19 +551,19 @@ bacteria_genus<-bacteria[,c(1,7:ncol(bacteria))]
 
 In this case, we are only going to select the species/genus that we are interested in. In this case it becomes easier for me, since all *Limosilactobacillus* are *fermentum*. But let's assume that there are more species, so that we also need to filter per species:
 
-```{r}
+```r
 lf <- bacteria_genus %>%
   filter(Genus == "Limosilactobacillus") %>%
   filter(Species == "fermentum")
 ```
-```{r eval=FALSE}
+```r
 # We can output this table as we did with the genus table before
 write_excel_csv2(lf, "Tables/Limosilactobacillus_fermentum.csv")
 ```
 
 Work a bit on the data frame:
 
-```{r}
+```r
 # Remove sequence column
 lf_final <- lf[-1]
 # Reformat the name
@@ -577,7 +577,7 @@ colnames(lf_renamed)[1]<-"ASV"
 
 We don't need to group the ASVs or calculate minorities (unless you have like 50 ASVs), but is typically not the case. So let's proceed with all things we have done previously:
 
-```{r}
+```r
 lf_relative <- percentage(lf_renamed)
 lf_melted<- melt(lf_relative,id.vars="ASV")
 lf_melted$Fermentation <- c(rep("Negative control",21*16),
@@ -621,7 +621,7 @@ lf_melted$ASV <- factor(lf_melted$ASV,
 
 Now we are going to import the relative abundances of all *Liml. fermentum* together within the whole bacterial community. Do as done before for the species-level section.
 
-```{r}
+```r
 # Import relative abundances for LAB
 data <- read_excel("Test data/bacteria_genus_relative_abundance_pseudo.xlsx")
 data.lab <- data %>%
@@ -653,7 +653,7 @@ data.t.lab$Vessel <- factor(data.t.lab$Vessel,
 
 Let's add this ugly and long code to put the names in *italic* but not the numbers:
 
-```{r}
+```r
 mylabels <- c(expression(paste(italic("Liml. fermentum"), " 1")),
               expression(paste(italic("Liml. fermentum"), " 2")),
               expression(paste(italic("Liml. fermentum"), " 3")),
@@ -679,7 +679,7 @@ mylabels <- c(expression(paste(italic("Liml. fermentum"), " 1")),
 
 Let's plot!
 
-```{r fig.width=10, fig.height=8}
+```r
 ggplot(lf_melted, aes(x=as.factor(Timepoint),y=value,fill=ASV)) +
   
   geom_bar(stat="identity", position = position_stack()) +
